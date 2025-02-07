@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Text Processor</title>
+  <!-- Import Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    /* Global Styles */
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fad0c4);
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      background: #fff;
+      padding: 30px 40px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      border-radius: 10px;
+      border: 2px solid #ff9a9e;
+    }
+    h2, h3, h4 {
+      text-align: center;
+      color: #d81b60;
+      margin-bottom: 20px;
+    }
+    /* Input & Control Elements */
+    textarea, input[type="text"], input[type="number"], select {
+      width: 100%;
+      font-size: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px solid #ff9a9e;
+      border-radius: 6px;
+      box-sizing: border-box;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    textarea:focus, input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      border-color: #d81b60;
+      outline: none;
+      box-shadow: 0 0 8px rgba(216, 27, 96, 0.3);
+    }
+    /* Options Panels */
+    .options, .advanced-options {
+      border: 1px solid #ffc1e3;
+      padding: 20px;
+      border-radius: 8px;
+      background: #fff0f6;
+      margin-bottom: 20px;
+    }
+    .options label, .advanced-options label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+      color: #d81b60;
+    }
+    .advanced-options h4 {
+      margin-bottom: 12px;
+      border-bottom: 2px solid #ffc1e3;
+      padding-bottom: 6px;
+    }
+    /* Conversion Rule Styling */
+    .conversion-rule {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .conversion-rule label {
+      flex: 0 0 auto;
+      color: #d81b60;
+    }
+    .conversion-rule input {
+      flex: 1;
+      min-width: 100px;
+    }
+    .conversion-rule button {
+      background-color: #d81b60;
+      border: none;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+    .conversion-rule button:hover {
+      background-color: #ad1457;
+      transform: translateY(-1px);
+    }
+    /* Button Styling */
+    .btn {
+      display: inline-block;
+      margin: 10px 5px 0 0;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      background-color: #d81b60;
+      color: #fff;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+    .btn:hover {
+      background-color: #ad1457;
+      transform: translateY(-2px);
+    }
+    .paste-btn {
+      background-color: #4caf50;
+    }
+    .paste-btn:hover {
+      background-color: #388e3c;
+    }
+    .copy-btn {
+      background-color: #00897b;
+    }
+    .copy-btn:hover {
+      background-color: #00695c;
+    }
+    .clear-btn {
+      background-color: #e53935;
+    }
+    .clear-btn:hover {
+      background-color: #c62828;
+    }
+    /* Output & Error Boxes */
+    .output-box, .error-box {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid #ff9a9e;
+      padding: 15px;
+      margin-top: 10px;
+      font-size: 16px;
+      background: #fff;
+      white-space: pre-wrap;
+      border-radius: 6px;
+    }
+    .error-box {
+      border-color: #e53935;
+      color: #e53935;
+      background: #ffebee;
+    }
+    /* Copied Message Notification */
+    #copyMessage {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #00897b;
+      color: #fff;
+      padding: 10px 15px;
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 0.5s;
+      pointer-events: none;
+      z-index: 1000;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Advanced Text Processor</h2>
+    
+    <!-- Main HTML Input -->
+    <textarea id="inputText" placeholder="Enter your HTML content..."></textarea>
+    
+    <!-- Action Buttons -->
+    <div>
+      <button class="btn paste-btn" onclick="pasteText()">Paste</button>
+      <button class="btn" onclick="processText()">Process</button>
+      <button class="btn copy-btn" onclick="copyResult()">Copy All</button>
+      <button class="btn clear-btn" onclick="clearAll()">Clear All</button>
+    </div>
+    
+    <!-- Basic Options -->
+    <div class="options">
+      <label for="allowedTags">Allowed Tags (comma-separated):</label>
+      <input type="text" id="allowedTags" placeholder="p" value="p" />
+      
+      <label for="excludeKeywords">Exclude Keywords/Phrases (comma-separated):</label>
+      <input type="text" id="excludeKeywords" placeholder="&copy;, Madara Inc" value="&copy;, Madara Inc" />
+      
+      <label for="resultTag">Result Tag (optional):</label>
+      <input type="text" id="resultTag" placeholder="e.g., p" />
+    </div>
+    
+    <!-- Advanced Options -->
+    <div class="advanced-options">
+      <h4>Conversion Rules (Optional)</h4>
+      <div id="conversionRulesContainer">
+        <!-- Dynamic conversion rule rows will be added here -->
+      </div>
+      <button type="button" class="btn" onclick="addConversionRule()">Add Conversion Rule</button>
+      
+      <h4>Exclusion Rule (Optional)</h4>
+      <label for="excludeIndex">Exclude Element Number (1-based):</label>
+      <input type="number" id="excludeIndex" placeholder="e.g., 5" min="1" />
+      
+      <h4>Auto-Include Content (Optional)</h4>
+      <label for="includePosition">Include Position:</label>
+      <select id="includePosition">
+        <option value="">None</option>
+        <option value="prepend">Prepend</option>
+        <option value="append">Append</option>
+      </select>
+      <label for="includeContent">Content to Include (HTML allowed):</label>
+      <input type="text" id="includeContent" placeholder="Enter HTML snippet" />
+      
+      <h4>Remove Tag Attributes (Optional)</h4>
+      <label for="removeAttributes">Attributes to remove (comma-separated):</label>
+      <input type="text" id="removeAttributes" placeholder="e.g., class, id, style" />
+    </div>
+    
+    <!-- Error Display -->
+    <div id="errorBox" class="error-box" style="display: none;"></div>
+    
+    <h3>Result:</h3>
+    <div class="output-box" id="outputText"></div>
+    
+    <!-- Copied Message -->
+    <div id="copyMessage">Copied!</div>
+  </div>
+  
+  <script>
+    // Add a conversion rule row dynamically.
+    function addConversionRule() {
+      const container = document.getElementById("conversionRulesContainer");
+      const ruleDiv = document.createElement("div");
+      ruleDiv.className = "conversion-rule";
+      ruleDiv.innerHTML = `
+        <label>Element #:</label>
+        <input type="number" class="convertIndex" min="1" placeholder="e.g., 1">
+        <label>Convert to:</label>
+        <input type="text" class="convertTag" placeholder="e.g., h1">
+        <button type="button" onclick="removeConversionRule(this)">Remove</button>
+      `;
+      container.appendChild(ruleDiv);
+    }
+    
+    // Remove a conversion rule row.
+    function removeConversionRule(button) {
+      const ruleDiv = button.parentNode;
+      ruleDiv.parentNode.removeChild(ruleDiv);
+    }
+    
+    // Paste text from the clipboard into the input textarea.
+    function pasteText() {
+      navigator.clipboard.readText()
+        .then(text => {
+          document.getElementById("inputText").value = text;
+        })
+        .catch(err => {
+          showErrorNotification("Paste failed!");
+        });
+    }
+    
+    // Process the input HTML according to settings.
+    function processText() {
+      // Clear previous error messages.
+      const errorBox = document.getElementById("errorBox");
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+      
+      // Retrieve basic options.
+      const allowedTagsInput = document.getElementById("allowedTags").value.trim();
+      const excludeKeywordsInput = document.getElementById("excludeKeywords").value.trim();
+      const resultTag = document.getElementById("resultTag").value.trim();
+      
+      // Retrieve advanced options.
+      // 1. Conversion Rules.
+      const conversionRules = [];
+      document.querySelectorAll(".conversion-rule").forEach(rule => {
+        const indexInput = rule.querySelector(".convertIndex").value;
+        const tagInput = rule.querySelector(".convertTag").value.trim();
+        const index = parseInt(indexInput, 10);
+        if (!isNaN(index) && tagInput) {
+          conversionRules.push({ index, tag: tagInput });
+        }
+      });
+      
+      // 2. Exclusion Rule by element index.
+      const excludeIndexValue = document.getElementById("excludeIndex").value;
+      const excludeIndex = excludeIndexValue ? parseInt(excludeIndexValue, 10) : null;
+      
+      // 3. Auto-Include Content.
+      const includePosition = document.getElementById("includePosition").value;
+      const includeContent = document.getElementById("includeContent").value;
+      
+      // 4. Remove Tag Attributes.
+      const removeAttributesInput = document.getElementById("removeAttributes").value.trim();
+      
+      // Prepare allowed tags and excluded keywords arrays.
+      const allowedTags = allowedTagsInput
+        ? allowedTagsInput.split(",").map(tag => tag.trim()).filter(tag => tag)
+        : ["p"];
+      const excludeKeywords = excludeKeywordsInput
+        ? excludeKeywordsInput.split(",").map(kw => kw.trim()).filter(kw => kw)
+        : [];
+      
+      // Build selector string.
+      const selector = allowedTags.join(", ");
+      
+      // Parse the input HTML.
+      const text = document.getElementById("inputText").value;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
+      
+      // Process allowed elements.
+      const elements = doc.querySelectorAll(selector);
+      let cleanText = "";
+      let validElementCount = 0;
+      
+      elements.forEach((el) => {
+        const elContent = el.innerHTML;
+        // Skip elements if content contains any excluded keyword.
+        const shouldExcludeByKeyword = excludeKeywords.some(keyword => elContent.includes(keyword));
+        if (shouldExcludeByKeyword) return;
+        
+        validElementCount++;
+        
+        // Skip element if it matches the exclusion rule by index.
+        if (excludeIndex && validElementCount === excludeIndex) return;
+        
+        // Check for a conversion rule by element order.
+        let conversionRule = conversionRules.find(rule => rule.index === validElementCount);
+        
+        // Determine the tag to use.
+        // If a Result Tag is specified, it overrides both conversion rules and the original tag.
+        let outputTag;
+        if (resultTag) {
+          outputTag = resultTag;
+        } else if (conversionRule) {
+          outputTag = conversionRule.tag;
+        } else {
+          outputTag = el.tagName.toLowerCase();
+        }
+        
+        cleanText += `<${outputTag}>${elContent}</${outputTag}>\n`;
+      });
+      
+      // Auto-Include additional content if specified.
+      if (includePosition && includeContent) {
+        if (includePosition === "prepend") {
+          cleanText = includeContent + "\n" + cleanText;
+        } else if (includePosition === "append") {
+          cleanText = cleanText + "\n" + includeContent;
+        }
+      }
+      
+      // If the remove attributes option is provided, strip specified attributes from all tags in the output.
+      if (removeAttributesInput) {
+        const attrsToRemove = removeAttributesInput
+          .split(",")
+          .map(attr => attr.trim().toLowerCase())
+          .filter(attr => attr);
+        // Parse the cleanText as an HTML fragment.
+        const tempDoc = new DOMParser().parseFromString(cleanText, "text/html");
+        // Remove the specified attributes from every element.
+        tempDoc.body.querySelectorAll("*").forEach(el => {
+          attrsToRemove.forEach(attr => {
+            if (el.hasAttribute(attr)) {
+              el.removeAttribute(attr);
+            }
+          });
+        });
+        // Rebuild the cleanText from the modified document.
+        cleanText = tempDoc.body.innerHTML;
+      }
+      
+      // Display an error if no valid elements were processed.
+      if (!cleanText.trim()) {
+        errorBox.style.display = "block";
+        errorBox.textContent = "Error: No valid content processed. Please check your input and filter settings.";
+      }
+      
+      // Output the processed HTML.
+      document.getElementById("outputText").textContent = cleanText;
+    }
+    
+    // Copy the processed output to the clipboard.
+    function copyResult() {
+      const output = document.getElementById("outputText").textContent;
+      if (!output.trim()) {
+        showErrorNotification("Nothing to copy!");
+        return;
+      }
+      navigator.clipboard.writeText(output)
+        .then(() => {
+          const copyMessage = document.getElementById("copyMessage");
+          copyMessage.style.opacity = 1;
+          setTimeout(() => {
+            copyMessage.style.opacity = 0;
+          }, 1500);
+        })
+        .catch(err => {
+          console.error("Failed to copy: ", err);
+          showErrorNotification("Copy failed!");
+        });
+    }
+    
+    // Clear only the main input and result (keeping settings intact).
+    function clearAll() {
+      document.getElementById("inputText").value = "";
+      document.getElementById("outputText").textContent = "";
+      const errorBox = document.getElementById("errorBox");
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
+    
+    // Show a temporary error notification.
+    function showErrorNotification(message) {
+      const errorBox = document.getElementById("errorBox");
+      errorBox.textContent = message;
+      errorBox.style.display = "block";
+      setTimeout(() => {
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
+      }, 2000);
+    }
+  </script>
+  <script>
+  function cleanChapterContent() {
+    // Lấy phần tử chứa nội dung truyện theo data-x-bind="ChapterContent"
+    const chapterContent = document.querySelector('[data-x-bind="ChapterContent"]');
+    if (!chapterContent) {
+      console.error("Không tìm thấy phần tử chứa nội dung truyện!");
+      return;
+    }
+    
+    // 1. Loại bỏ các thẻ <div> con trống (không có nội dung có ý nghĩa)
+    const divs = chapterContent.querySelectorAll('div');
+    divs.forEach(div => {
+      // Nếu chỉ chứa khoảng trắng hoặc rỗng, loại bỏ thẻ đó
+      if (!div.textContent.trim()) {
+        div.remove();
+      }
+    });
+    
+    // 2. Loại bỏ các thuộc tính không cần thiết, ví dụ các thuộc tính bắt đầu bằng "data-x-"
+    Array.from(chapterContent.attributes).forEach(attr => {
+      if (attr.name.startsWith('data-x-')) {
+        chapterContent.removeAttribute(attr.name);
+      }
+    });
+    
+    // 3. (Tùy chọn) Chuyển đổi chuỗi <br> liên tiếp thành các đoạn văn <p>
+    // Ví dụ: chuyển đổi 2 hoặc nhiều <br> liên tiếp thành </p><p>
+    let html = chapterContent.innerHTML;
+    html = html.replace(/(<br\s*\/?>\s*){2,}/gi, '</p><p>');
+    // Nếu nội dung không được bao quanh bởi <p> ... </p>, thêm chúng vào đầu và cuối
+    if (!html.trim().startsWith('<p>')) {
+      html = '<p>' + html;
+    }
+    if (!html.trim().endsWith('</p>')) {
+      html = html + '</p>';
+    }
+    
+    // Cập nhật lại nội dung đã xử lý
+    chapterContent.innerHTML = html;
+    
+    // Trả về HTML đã được làm sạch (nếu cần sử dụng cho mục đích khác)
+    return chapterContent.innerHTML;
+  }
+
+  // Ví dụ: Gọi hàm khi trang đã tải xong
+  document.addEventListener('DOMContentLoaded', () => {
+    const cleanedHTML = cleanChapterContent();
+    console.log("Nội dung sau khi làm sạch:", cleanedHTML);
+  });
+</script>
+
+</body>
+</html>
