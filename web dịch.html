@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Web Dịch Trung/Anh sang Việt</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f7f7;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    label, p {
+      margin-bottom: 5px;
+      display: block;
+    }
+    select, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    button {
+      background-color: #007BFF;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Web Dịch Trung/Anh sang Việt</h1>
+    
+    <!-- Cho phép chọn tiếng Trung hoặc tiếng Anh làm ngôn ngữ nguồn -->
+    <label for="sourceLang">Ngôn ngữ nguồn:</label>
+    <select id="sourceLang">
+      <option value="zh">Tiếng Trung</option>
+      <option value="en">Tiếng Anh</option>
+    </select>
+    
+    <!-- Ngôn ngữ đích cố định là tiếng Việt -->
+    <p>Ngôn ngữ đích: <strong>Tiếng Việt</strong></p>
+    
+    <label for="inputText">Nhập văn bản cần dịch:</label>
+    <textarea id="inputText" placeholder="Nhập văn bản..."></textarea>
+    
+    <button id="translateBtn">Dịch</button>
+    
+    <h2>Kết quả dịch:</h2>
+    <textarea id="outputText" readonly placeholder="Kết quả dịch sẽ xuất hiện ở đây"></textarea>
+  </div>
+
+  <script>
+    // Danh sách các endpoint của API (các endpoint của LibreTranslate)
+    const endpoints = [
+      'https://libretranslate.de/translate',
+      'https://libretranslate.com/translate',
+      'https://translate.argosopentech.com/translate'
+    ];
+
+    // Hàm thử gọi API theo danh sách endpoint
+    function translateWithFallback(index, inputText, sourceLang, targetLang) {
+      if (index >= endpoints.length) {
+        document.getElementById('outputText').value = "Lỗi: Không thể dịch qua các API hiện có.";
+        return;
+      }
+      
+      fetch(endpoints[index], {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          q: inputText,
+          source: sourceLang,
+          target: targetLang,
+          format: "text"
+        })
+      })
+      .then(response => {
+        // Kiểm tra HTTP status
+        if (!response.ok) {
+          throw new Error("HTTP error " + response.status);
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Kiểm tra phản hồi có chứa trường translatedText không
+        if (data && data.translatedText) {
+          document.getElementById('outputText').value = data.translatedText;
+        } else {
+          console.warn("Endpoint không trả về translatedText, thử endpoint tiếp theo...");
+          translateWithFallback(index + 1, inputText, sourceLang, targetLang);
+        }
+      })
+      .catch(error => {
+        console.error('Lỗi với endpoint:', endpoints[index], error);
+        // Thử endpoint tiếp theo
+        translateWithFallback(index + 1, inputText, sourceLang, targetLang);
+      });
+    }
+
+    document.getElementById('translateBtn').addEventListener('click', function() {
+      const inputText = document.getElementById('inputText').value.trim();
+      const sourceLang = document.getElementById('sourceLang').value;
+      const targetLang = 'vi'; // Đích là tiếng Việt
+
+      if (inputText === "") {
+        alert("Vui lòng nhập văn bản cần dịch.");
+        return;
+      }
+
+      // Hiển thị thông báo trong khi dịch (tuỳ chọn)
+      document.getElementById('outputText').value = "Đang dịch, vui lòng chờ...";
+
+      // Bắt đầu gọi API từ endpoint đầu tiên
+      translateWithFallback(0, inputText, sourceLang, targetLang);
+    });
+  </script>
+</body>
+</html>
