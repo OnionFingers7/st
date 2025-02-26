@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Convert Text Files to EPUB</title>
+  <!-- Thư viện JSZip để đóng gói EPUB -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+  <style>
+    /* GLOBAL STYLES */
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    label {
+      font-weight: bold;
+      margin-top: 10px;
+      display: block;
+    }
+    input[type="text"],
+    input[type="file"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button#convertBtn {
+      width: 100%;
+      background-color: #3498db;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 10px;
+    }
+    button#convertBtn:hover {
+      background-color: #2980b9;
+    }
+
+    /* DANH SÁCH FILE */
+    .file-list {
+      margin-top: 20px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .file-item:last-child {
+      border-bottom: none;
+    }
+    .file-index {
+      width: 30px;
+      text-align: center;
+      font-weight: bold;
+      color: #555;
+    }
+    .file-name {
+      flex: 1;
+      padding: 0 10px;
+      color: #333;
+    }
+    button.move-up,
+    button.move-down {
+      margin-left: 5px;
+      padding: 5px 10px;
+      font-size: 14px;
+      border: none;
+      border-radius: 4px;
+      background-color: #bdc3c7;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button.move-up:hover,
+    button.move-down:hover {
+      background-color: #95a5a6;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* THANH TIẾN ĐỘ */
+    #progressContainer {
+      margin-top: 20px;
+      display: none;
+    }
+    #progressBar {
+      width: 100%;
+      height: 20px;
+    }
+
+    /* POPUP THÔNG BÁO */
+    .notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #2ecc71;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: opacity 1s;
+      opacity: 1;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Convert Text Files to EPUB</h1>
+
+    <!-- CHỌN NGÔN NGỮ MỤC LỤC -->
+    <label for="tocLanguage">Ngôn ngữ mục lục (TOC Language):</label>
+    <select id="tocLanguage">
+      <option value="vi">Tiếng Việt</option>
+      <option value="en">English</option>
+    </select>
+
+    <!-- NHẬP TÊN SÁCH -->
+    <label for="bookTitle">Tên sách:</label>
+    <input type="text" id="bookTitle" placeholder="Nhập tên sách">
+
+    <!-- NHẬP TÊN TÁC GIẢ -->
+    <label for="authorName">Tác giả:</label>
+    <input type="text" id="authorName" placeholder="Nhập tên tác giả">
+
+    <!-- TÙY CHỌN THÊM PHẦN GIỚI THIỆU -->
+    <div style="margin: 10px 0;">
+      <input type="checkbox" id="introCheck">
+      <label for="introCheck" style="display:inline; font-weight:normal;">Thêm phần giới thiệu ở đầu sách?</label>
+    </div>
+    <textarea id="introText" placeholder="Nhập nội dung phần giới thiệu (plain text)" style="display:none; height: 100px;"></textarea>
+
+    <!-- CHỌN FILE TEXT -->
+    <label for="fileInput">Chọn file .txt (tối đa 5000 file):</label>
+    <input type="file" id="fileInput" multiple accept=".txt">
+
+    <!-- CHỌN ẢNH BÌA -->
+    <label for="coverInput">Chọn ảnh bìa (tùy chọn):</label>
+    <input type="file" id="coverInput" accept="image/*">
+
+    <!-- CHỌN FILE BẮT ĐẦU LÀ "CHƯƠNG 1" -->
+    <label for="startChapterSelect">Chọn file bắt đầu “Chương/Chapter 1”:</label>
+    <select id="startChapterSelect"></select>
+
+    <!-- NÚT TẠO EPUB -->
+    <button id="convertBtn">Tạo EPUB</button>
+
+    <!-- DANH SÁCH FILE ĐÃ CHỌN -->
+    <div class="file-list" id="fileList"></div>
+
+    <!-- THANH TIẾN ĐỘ -->
+    <div id="progressContainer">
+      <label for="progressBar">Tiến độ:</label>
+      <progress id="progressBar" value="0" max="100"></progress>
+      <span id="progressPercent">0%</span>
+    </div>
+  </div>
+
+  <script>
+    /****************************************************
+     * HÀM TẠO POPUP THÔNG BÁO
+     ****************************************************/
+    function showNotification(message) {
+      const notif = document.createElement("div");
+      notif.classList.add("notification");
+      notif.textContent = message;
+      document.body.appendChild(notif);
+
+      // Sau 5 giây thì mờ dần và xóa
+      setTimeout(() => {
+        notif.style.opacity = "0";
+        setTimeout(() => {
+          if (notif.parentNode) {
+            notif.parentNode.removeChild(notif);
+          }
+        }, 1000);
+      }, 5000);
+    }
+
+    /****************************************************
+     * HÀM XỬ LÝ TÊN FILE EPUB AN TOÀN (GIỮ NGUYÊN DẤU TIẾNG VIỆT)
+     * Chỉ loại bỏ ký tự cấm trong Windows: / \ ? % * : | " < >
+     ****************************************************/
+    function safeFilename(str) {
+      return str
+        .replace(/[\/\\\?\%\*\:\|\"\<\>]/g, "_") // Thay các ký tự cấm bằng _
+        .replace(/[\x00-\x1F\x80-\x9F]/g, "_")   // Loại bỏ control chars
+        .trim();
+    }
+
+    /****************************************************
+     * BIẾN & PHẦN TỬ TRÊN GIAO DIỆN
+     ****************************************************/
+    let selectedFiles = [];
+    let excludedFromNumbering = []; // Mảng lưu trạng thái "bỏ qua đánh số" cho từng file
+
+    const fileInput = document.getElementById("fileInput");
+    const coverInput = document.getElementById("coverInput");
+    const fileList = document.getElementById("fileList");
+    const startChapterSelect = document.getElementById("startChapterSelect");
+    const progressContainer = document.getElementById("progressContainer");
+    const progressBar = document.getElementById("progressBar");
+    const progressPercent = document.getElementById("progressPercent");
+    const introCheck = document.getElementById("introCheck");
+    const introText = document.getElementById("introText");
+
+    // Ẩn/hiện ô nhập "Phần giới thiệu" khi checkbox thay đổi
+    introCheck.addEventListener("change", () => {
+      introText.style.display = introCheck.checked ? "block" : "none";
+    });
+
+    /****************************************************
+     * SỰ KIỆN CHỌN FILE TEXT
+     ****************************************************/
+    fileInput.addEventListener("change", function() {
+      selectedFiles = Array.from(fileInput.files);
+      // Khởi tạo mảng excludedFromNumbering tương ứng
+      excludedFromNumbering = selectedFiles.map(() => false);
+      renderFileList();
+      renderStartChapterOptions();
+    });
+
+    /****************************************************
+     * HIỂN THỊ DANH SÁCH FILE + NÚT LÊN/XUỐNG + CHECKBOX
+     ****************************************************/
+    function renderFileList() {
+      fileList.innerHTML = "";
+      selectedFiles.forEach((file, index) => {
+        const div = document.createElement("div");
+        div.classList.add("file-item");
+
+        const indexSpan = document.createElement("span");
+        indexSpan.classList.add("file-index");
+        indexSpan.textContent = index + 1;
+        div.appendChild(indexSpan);
+
+        const nameSpan = document.createElement("span");
+        nameSpan.classList.add("file-name");
+        nameSpan.textContent = file.name;
+        div.appendChild(nameSpan);
+
+        // Nút move up
+        const upButton = document.createElement("button");
+        upButton.classList.add("move-up");
+        upButton.textContent = "▲";
+        upButton.disabled = (index === 0);
+        upButton.addEventListener("click", () => {
+          moveUp(index);
+        });
+        div.appendChild(upButton);
+
+        // Nút move down
+        const downButton = document.createElement("button");
+        downButton.classList.add("move-down");
+        downButton.textContent = "▼";
+        downButton.disabled = (index === selectedFiles.length - 1);
+        downButton.addEventListener("click", () => {
+          moveDown(index);
+        });
+        div.appendChild(downButton);
+
+        // Checkbox: Exclude from numbering
+        const excludeCheckbox = document.createElement("input");
+        excludeCheckbox.type = "checkbox";
+        excludeCheckbox.style.marginLeft = "10px";
+        excludeCheckbox.checked = excludedFromNumbering[index];
+        excludeCheckbox.addEventListener("change", () => {
+          excludedFromNumbering[index] = excludeCheckbox.checked;
+        });
+        div.appendChild(excludeCheckbox);
+
+        const excludeLabel = document.createElement("span");
+        excludeLabel.textContent = " Bỏ qua đánh số?";
+        excludeLabel.style.marginLeft = "4px";
+        div.appendChild(excludeLabel);
+
+        fileList.appendChild(div);
+      });
+    }
+
+    /****************************************************
+     * CẬP NHẬT SELECT “BẮT ĐẦU CHƯƠNG 1”
+     ****************************************************/
+    function renderStartChapterOptions() {
+      startChapterSelect.innerHTML = "";
+      selectedFiles.forEach((file, index) => {
+        const option = document.createElement("option");
+        option.value = index;
+        option.textContent = (index + 1) + " - " + file.name;
+        startChapterSelect.appendChild(option);
+      });
+      startChapterSelect.selectedIndex = 0;
+    }
+
+    function moveUp(index) {
+      if (index <= 0) return;
+      // Hoán đổi file
+      const tempFile = selectedFiles[index];
+      selectedFiles[index] = selectedFiles[index - 1];
+      selectedFiles[index - 1] = tempFile;
+      // Hoán đổi trạng thái exclude
+      const tempEx = excludedFromNumbering[index];
+      excludedFromNumbering[index] = excludedFromNumbering[index - 1];
+      excludedFromNumbering[index - 1] = tempEx;
+
+      renderFileList();
+      renderStartChapterOptions();
+    }
+
+    function moveDown(index) {
+      if (index >= selectedFiles.length - 1) return;
+      const tempFile = selectedFiles[index];
+      selectedFiles[index] = selectedFiles[index + 1];
+      selectedFiles[index + 1] = tempFile;
+
+      const tempEx = excludedFromNumbering[index];
+      excludedFromNumbering[index] = excludedFromNumbering[index + 1];
+      excludedFromNumbering[index + 1] = tempEx;
+
+      renderFileList();
+      renderStartChapterOptions();
+    }
+
+    /****************************************************
+     * LẤY LABEL CHƯƠNG / PHẦN / THÔNG BÁO / ETC.
+     * DỰA TRÊN NGÔN NGỮ & VỊ TRÍ
+     ****************************************************/
+    function getLabel(fileIndex, startIndex, skipNumbering, lang) {
+      if (skipNumbering) {
+        // Bỏ qua đánh số => "Thông báo" / "Special Section"
+        return (lang === 'vi') ? "Thông báo" : "Special Section";
+      } else {
+        // Chia thành hai vùng:
+        // - fileIndex < startIndex => "Phần" / "Section"
+        // - fileIndex >= startIndex => "Chương" / "Chapter"
+        if (fileIndex < startIndex) {
+          return (lang === 'vi')
+            ? "Phần " + (fileIndex + 1)
+            : "Section " + (fileIndex + 1);
+        } else {
+          const num = fileIndex - startIndex + 1;
+          return (lang === 'vi')
+            ? "Chương " + num
+            : "Chapter " + num;
+        }
+      }
+    }
+
+    /****************************************************
+     * XỬ LÝ TẠO EPUB KHI NHẤN "TẠO EPUB"
+     ****************************************************/
+    document.getElementById("convertBtn").addEventListener("click", function() {
+      // Kiểm tra số lượng file
+      if (selectedFiles.length === 0) {
+        alert('Vui lòng chọn ít nhất một file .txt');
+        return;
+      }
+      if (selectedFiles.length > 5000) {
+        alert('Tối đa 5000 file được phép tải lên.');
+        return;
+      }
+
+      // Lấy tên sách, tác giả, ngôn ngữ TOC
+      const bookTitle = document.getElementById("bookTitle").value.trim() || "Sách ghép file text";
+      const authorName = document.getElementById("authorName").value.trim() || "Khuyết danh";
+      const tocLang = document.getElementById("tocLanguage").value; // 'vi' or 'en'
+
+      // Vị trí bắt đầu "Chương 1"
+      const startIndex = parseInt(startChapterSelect.value, 10) || 0;
+
+      // Tạo đối tượng ZIP (EPUB)
+      const zip = new JSZip();
+      zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+      zip.folder("META-INF").file("container.xml", `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+      const oebps = zip.folder("OEBPS");
+
+      // MẢNG LƯU CHƯƠNG
+      const chapters = [];
+
+      // HIỂN THỊ THANH TIẾN ĐỘ
+      progressContainer.style.display = "block";
+      progressBar.value = 0;
+      progressPercent.textContent = "0%";
+
+      // ĐỌC ẢNH BÌA (NẾU CÓ)
+      let coverFilename = null;
+      let coverMimeType = null;
+      const coverFile = coverInput.files[0];
+      const coverPromise = new Promise((resolve) => {
+        if (!coverFile) {
+          resolve(null);
+        } else {
+          const coverReader = new FileReader();
+          coverReader.onload = e => {
+            coverMimeType = coverFile.type || "image/jpeg";
+            // Xác định phần mở rộng
+            let ext = "jpg";
+            if (coverMimeType.includes("png")) ext = "png";
+            else if (coverMimeType.includes("gif")) ext = "gif";
+            coverFilename = "cover." + ext;
+            // Thêm file ảnh bìa
+            oebps.file(coverFilename, e.target.result);
+            resolve(coverFilename);
+          };
+          coverReader.onerror = () => resolve(null);
+          coverReader.readAsArrayBuffer(coverFile);
+        }
+      });
+
+      // NẾU CHỌN THÊM PHẦN GIỚI THIỆU
+      let introItem = null;
+      const introPromise = new Promise((resolve) => {
+        const check = document.getElementById("introCheck").checked;
+        if (!check) {
+          resolve(null);
+        } else {
+          const introContentRaw = introText.value || "";
+          // Escape HTML, thay \n bằng <br />
+          const formattedIntro = introContentRaw
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\r?\n/g, "<br />");
+          const introXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8"/>
+  <title>Giới thiệu</title>
+  <style>
+    body { font-family: sans-serif; margin: 1em; }
+    h1.intro-title {
+      color: #3a3a3a;
+      text-align: center;
+      font-size: 1.4em;
+      margin-bottom: 1em;
+    }
+    p { text-align: justify; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1 class="intro-title">${(tocLang === 'vi') ? 'Giới thiệu' : 'Introduction'}</h1>
+  <p>${formattedIntro}</p>
+</body>
+</html>`;
+          oebps.file("introduction.xhtml", introXhtml);
+          introItem = {
+            id: "intro",
+            title: (tocLang === 'vi') ? "Giới thiệu" : "Introduction",
+            filename: "introduction.xhtml"
+          };
+          resolve(introItem);
+        }
+      });
+
+      // ĐỌC NỘI DUNG TẤT CẢ FILE .TXT
+      const totalFiles = selectedFiles.length;
+      let processedCount = 0;
+
+      const textPromises = selectedFiles.map((file, i) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const content = e.target.result;
+            // Escape HTML
+            const formattedContent = content
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/\r?\n/g, "<br />");
+
+            // Xác định label
+            const skip = excludedFromNumbering[i];
+            const label = getLabel(i, startIndex, skip, tocLang);
+
+            const chapterFilename = `chap_${i+1}.xhtml`;
+            const chapterContent = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8"/>
+  <title>${label}</title>
+  <style>
+    body { font-family: sans-serif; margin: 1em; }
+    h1.chapter-title {
+      color: #3a3a3a;
+      text-align: center;
+      font-size: 1.4em;
+      margin-bottom: 1em;
+    }
+    p { text-align: justify; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1 class="chapter-title">${label}</h1>
+  <p>${formattedContent}</p>
+</body>
+</html>`;
+
+            chapters[i] = {
+              id: `chap_${i+1}`,
+              title: label,
+              filename: chapterFilename
+            };
+            oebps.file(chapterFilename, chapterContent);
+
+            processedCount++;
+            const progress = Math.round((processedCount / totalFiles) * 100);
+            progressBar.value = progress;
+            progressPercent.textContent = progress + "%";
+            resolve();
+          };
+          reader.onerror = e => reject(e);
+          reader.readAsText(file, "UTF-8");
+        });
+      });
+
+      /****************************************************
+       * SAU KHI ĐỌC XONG COVER, INTRO VÀ TẤT CẢ FILE TEXT
+       ****************************************************/
+      Promise.all([coverPromise, introPromise, ...textPromises]).then(values => {
+        const [coverResult, introResult] = values; // coverResult = coverFilename, introResult = introItem
+
+        // CHUẨN BỊ content.opf
+        let coverItem = "";
+        let coverMeta = "";
+        let coverPageItem = "";
+        let coverPageItemref = "";
+        if (coverResult) {
+          // Có ảnh bìa
+          coverItem = `<item id="cover" href="${coverResult}" media-type="${coverMimeType}" properties="cover-image"/>`;
+          coverMeta = `<meta name="cover" content="cover"/>`;
+
+          // Tạo cover.xhtml để hiển thị ảnh bìa
+          const coverXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8"/>
+  <title>Cover</title>
+</head>
+<body style="margin:0;padding:0;">
+  <div style="text-align:center;">
+    <img src="${coverResult}" alt="Cover Image" style="max-width:100%; height:auto;" />
+  </div>
+</body>
+</html>`;
+          oebps.file("cover.xhtml", coverXhtml);
+          coverPageItem = `<item id="coverpage" href="cover.xhtml" media-type="application/xhtml+xml"/>`;
+          coverPageItemref = `<itemref idref="coverpage" linear="yes"/>`;
+        }
+
+        // Mảng manifest cho các chương
+        const manifestChapters = chapters.map(chap =>
+          `<item id="${chap.id}" href="${chap.filename}" media-type="application/xhtml+xml"/>`
+        ).join("\n    ");
+
+        // Nếu có phần giới thiệu
+        let introManifest = "";
+        let introItemref = "";
+        if (introResult) {
+          introManifest = `<item id="${introResult.id}" href="${introResult.filename}" media-type="application/xhtml+xml"/>`;
+          introItemref = `<itemref idref="${introResult.id}" linear="yes"/>`;
+        }
+
+        const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>${bookTitle}</dc:title>
+    <dc:creator>${authorName}</dc:creator>
+    <dc:language>vi</dc:language>
+    <dc:identifier id="BookId">urn:uuid:12345</dc:identifier>
+    ${coverMeta}
+  </metadata>
+  <manifest>
+    ${coverItem}
+    ${coverPageItem}
+    ${introManifest}
+    ${manifestChapters}
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    ${coverPageItemref}
+    ${introItemref}
+    ${chapters.map(ch => `<itemref idref="${ch.id}"/>`).join("\n    ")}
+  </spine>
+</package>`;
+        oebps.file("content.opf", contentOpf);
+
+        // TẠO toc.ncx
+        let navIndex = 1;
+        const navPoints = [];
+
+        // Nếu có phần giới thiệu => thêm vào navMap trước
+        if (introResult) {
+          navPoints.push(`
+      <navPoint id="navPoint-intro" playOrder="${navIndex}">
+        <navLabel>
+          <text>${introResult.title}</text>
+        </navLabel>
+        <content src="${introResult.filename}"/>
+      </navPoint>`);
+          navIndex++;
+        }
+
+        // Thêm các chương
+        chapters.forEach((chap, i) => {
+          navPoints.push(`
+      <navPoint id="navPoint-${i+1}" playOrder="${navIndex}">
+        <navLabel>
+          <text>${chap.title}</text>
+        </navLabel>
+        <content src="${chap.filename}"/>
+      </navPoint>`);
+          navIndex++;
+        });
+
+        const tocNcx = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN"
+  "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:12345"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>${bookTitle}</text>
+  </docTitle>
+  <navMap>
+    ${navPoints.join("\n")}
+  </navMap>
+</ncx>`;
+        oebps.file("toc.ncx", tocNcx);
+
+        // ĐÓNG GÓI EPUB
+        zip.generateAsync({ type: "blob", mimeType: "application/epub+zip" })
+          .then(blob => {
+            // Tạo link ẩn và click để tải
+            const link = document.createElement("a");
+            link.style.display = "none";
+            document.body.appendChild(link);
+
+            const safeTitle = safeFilename(bookTitle) || "ebook";
+            link.href = URL.createObjectURL(blob);
+            link.download = safeTitle + ".epub";
+            link.click();
+
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+
+            // Ẩn thanh tiến độ
+            progressContainer.style.display = "none";
+
+            // Popup
+            showNotification("Đã tạo file EPUB thành công!");
+          })
+          .catch(err => alert("Lỗi tạo EPUB: " + err));
+      }).catch(err => alert("Lỗi đọc file: " + err));
+    });
+  </script>
+</body>
+</html>
